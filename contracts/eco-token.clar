@@ -6,6 +6,7 @@
 (define-constant err-owner-only (err u100))
 (define-constant err-not-found (err u101))
 (define-constant err-unauthorized (err u102))
+(define-constant err-insufficient-balance (err u103))
 
 ;; Data structures
 (define-map projects 
@@ -23,6 +24,7 @@
 
 ;; Data vars
 (define-data-var next-project-id uint u1)
+(define-data-var total-burned uint u0)
 
 ;; Add verifier
 (define-public (add-verifier (verifier principal))
@@ -73,9 +75,19 @@
 (define-public (transfer (amount uint) (sender principal) (recipient principal))
   (ft-transfer? eco-token amount sender recipient))
 
-;; Read only functions
+;; Burn tokens
+(define-public (burn (amount uint))
+  (begin
+    (asserts! (<= amount (ft-get-balance eco-token tx-sender)) err-insufficient-balance)
+    (var-set total-burned (+ (var-get total-burned) amount))
+    (ft-burn? eco-token amount tx-sender)))
+
+;; Read only functions 
 (define-read-only (get-project (project-id uint))
   (map-get? projects {project-id: project-id}))
 
 (define-read-only (get-balance (account principal))
   (ok (ft-get-balance eco-token account)))
+
+(define-read-only (get-total-burned)
+  (ok (var-get total-burned)))

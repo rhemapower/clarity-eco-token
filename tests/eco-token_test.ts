@@ -84,3 +84,60 @@ Clarinet.test({
     assertEquals(block.receipts[3].result, '(ok true)');
   },
 });
+
+Clarinet.test({
+  name: "Allows token holders to burn tokens",
+  async fn(chain: Chain, accounts: Map<string, Account>) {
+    const deployer = accounts.get("deployer")!;
+    const verifier = accounts.get("wallet_1")!;
+    const user = accounts.get("wallet_2")!;
+    
+    // Setup: Add verifier and mint tokens
+    let setup = chain.mineBlock([
+      Tx.contractCall(
+        "eco-token",
+        "add-verifier",
+        [types.principal(verifier.address)],
+        deployer.address
+      ),
+      Tx.contractCall(
+        "eco-token",
+        "register-project",
+        [types.ascii("Test"), types.ascii("Test")],
+        user.address
+      ),
+      Tx.contractCall(
+        "eco-token",
+        "verify-project",
+        [types.uint(1)],
+        verifier.address
+      ),
+      Tx.contractCall(
+        "eco-token",
+        "add-carbon-credits",
+        [types.uint(1), types.uint(100)],
+        verifier.address
+      )
+    ]);
+
+    // Test burning tokens
+    let burn = chain.mineBlock([
+      Tx.contractCall(
+        "eco-token",
+        "burn",
+        [types.uint(50)],
+        user.address
+      )
+    ]);
+    assertEquals(burn.receipts[0].result, '(ok true)');
+
+    // Verify burned amount
+    let getTotalBurned = chain.callReadOnlyFn(
+      "eco-token",
+      "get-total-burned",
+      [],
+      deployer.address
+    );
+    assertEquals(getTotalBurned.result, '(ok u50)');
+  },
+});
